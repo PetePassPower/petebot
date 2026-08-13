@@ -80,6 +80,7 @@ def test_chat_completion_via_gateway_raises_with_reason_from_body():
         chat_completion_via_gateway(client, "SYSTEM_PROMPT", [], "hi")
 
     assert "PII detected" in str(exc_info.value)
+    assert "(HTTP 400)" in str(exc_info.value)
 
 
 def test_chat_completion_via_gateway_falls_back_to_generic_message_on_unrecognized_body():
@@ -89,3 +90,4 @@ def test_chat_completion_via_gateway_falls_back_to_generic_message_on_unrecogniz
         chat_completion_via_gateway(client, "SYSTEM_PROMPT", [], "hi")
 
     assert "차단" in str(exc_info.value)
+    assert "(HTTP 400)" in str(exc_info.value)

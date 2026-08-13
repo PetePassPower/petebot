@@ -56,6 +56,6 @@ def chat_completion_via_gateway(
     try:
         response = client.chat.completions.create(model=model, messages=messages)
     except groq.APIStatusError as exc:
-        raise AIDefenseGatewayBlocked(_extract_block_reason(exc.body)) from exc
+        raise AIDefenseGatewayBlocked(f"{_extract_block_reason(exc.body)} (HTTP {exc.status_code})") from exc
 
     return response.choices[0].message.content
