@@ -10,6 +10,7 @@ from typing import Dict, List, Optional
 
 import groq
 from groq import Groq
+from groq.types.chat import ChatCompletion
 
 from petebot.llm import DEFAULT_MODEL
 
@@ -54,7 +55,11 @@ def chat_completion_via_gateway(
     messages.append({"role": "user", "content": user_message})
 
     try:
-        response = client.chat.completions.create(model=model, messages=messages)
+        response = client.post(
+            "/chat/completions",
+            body={"model": model, "messages": messages},
+            cast_to=ChatCompletion,
+        )
     except groq.APIStatusError as exc:
         raise AIDefenseGatewayBlocked(f"{_extract_block_reason(exc.body)} (HTTP {exc.status_code})") from exc
 

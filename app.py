@@ -81,8 +81,8 @@ if user_input:
         if not gateway_url:
             reply = "⚠️ AI_DEFENSE_GATEWAY_URL이 설정되지 않아 Gateway 모드를 사용할 수 없습니다."
         else:
-            gateway_client = get_gateway_client(api_key, gateway_url)
             try:
+                gateway_client = get_gateway_client(api_key, gateway_url)
                 reply = chat_completion_via_gateway(
                     gateway_client,
                     SYSTEM_PROMPT,
@@ -92,7 +92,7 @@ if user_input:
                 )
             except AIDefenseGatewayBlocked as exc:
                 st.session_state.detection_log.append(f"[Cisco AI Defense Gateway] 차단: {exc}")
-                reply = "⚠️ Cisco AI Defense Gateway가 요청을 차단했습니다."
+                reply = f"⚠️ Cisco AI Defense Gateway가 요청을 차단했습니다. ({exc})"
             except Exception as exc:
                 reply = f"⚠️ 오류가 발생했습니다: {exc}"
 
