@@ -93,6 +93,8 @@ if user_input:
             except AIDefenseGatewayBlocked as exc:
                 st.session_state.detection_log.append(f"[Cisco AI Defense Gateway] 차단: {exc}")
                 reply = "⚠️ Cisco AI Defense Gateway가 요청을 차단했습니다."
+            except Exception as exc:
+                reply = f"⚠️ 오류가 발생했습니다: {exc}"
 
         st.session_state.messages.append({"role": "assistant", "content": reply})
         st.rerun()
