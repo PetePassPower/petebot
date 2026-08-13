@@ -4,6 +4,7 @@ import streamlit as st
 from dotenv import load_dotenv
 
 from petebot.ai_defense import check_input, redact_output
+from petebot.ai_defense_gateway import AIDefenseGatewayBlocked, chat_completion_via_gateway, get_gateway_client
 from petebot.ai_defense_real import AIDefenseError, DEFAULT_BASE_URL, describe_verdict, inspect_messages
 from petebot.llm import DEFAULT_MODEL, chat_completion, get_client
 from petebot.system_prompt import SYSTEM_PROMPT
@@ -13,6 +14,7 @@ load_dotenv()
 DEFENSE_MODE_OFF = "끄기"
 DEFENSE_MODE_MOCK = "Mock 필터 (데모용)"
 DEFENSE_MODE_REAL = "Cisco AI Defense API (실제)"
+DEFENSE_MODE_GATEWAY = "Cisco AI Defense Gateway (프록시)"
 
 st.set_page_config(page_title="PeteBot", page_icon="🤖")
 st.title("🤖 PeteBot")
@@ -26,13 +28,15 @@ with st.sidebar:
     st.subheader("🛡️ AI Defense")
     defense_mode = st.radio(
         "필터 모드",
-        options=[DEFENSE_MODE_OFF, DEFENSE_MODE_MOCK, DEFENSE_MODE_REAL],
+        options=[DEFENSE_MODE_OFF, DEFENSE_MODE_MOCK, DEFENSE_MODE_REAL, DEFENSE_MODE_GATEWAY],
         index=0,
     )
     if defense_mode == DEFENSE_MODE_MOCK:
         st.caption("데모용 목업 필터입니다. 실제 Cisco AI Defense 엔진이 아닙니다.")
     elif defense_mode == DEFENSE_MODE_REAL:
         st.caption("Cisco AI Defense Chat Inspection API를 실시간으로 호출합니다.")
+    elif defense_mode == DEFENSE_MODE_GATEWAY:
+        st.caption("Cisco AI Defense Gateway를 통해 LLM 호출 자체를 프록시합니다 (인라인 검사, 단일 호출).")
 
     if st.button("대화 초기화"):
         st.session_state.messages = []
@@ -58,6 +62,10 @@ ai_defense_base_url = os.getenv("AI_DEFENSE_BASE_URL", DEFAULT_BASE_URL)
 if defense_mode == DEFENSE_MODE_REAL and not ai_defense_api_key:
     st.sidebar.warning("AI_DEFENSE_API_KEY가 설정되지 않았습니다. .env 파일을 확인하세요.")
 
+gateway_url = os.getenv("AI_DEFENSE_GATEWAY_URL")
+if defense_mode == DEFENSE_MODE_GATEWAY and not gateway_url:
+    st.sidebar.warning("AI_DEFENSE_GATEWAY_URL이 설정되지 않았습니다. .env 파일을 확인하세요.")
+
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
@@ -68,6 +76,26 @@ if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
         st.markdown(user_input)
+
+    if defense_mode == DEFENSE_MODE_GATEWAY:
+        if not gateway_url:
+            reply = "⚠️ AI_DEFENSE_GATEWAY_URL이 설정되지 않아 Gateway 모드를 사용할 수 없습니다."
+        else:
+            gateway_client = get_gateway_client(api_key, gateway_url)
+            try:
+                reply = chat_completion_via_gateway(
+                    gateway_client,
+                    SYSTEM_PROMPT,
+                    st.session_state.messages[:-1],
+                    user_input,
+                    model=DEFAULT_MODEL,
+                )
+            except AIDefenseGatewayBlocked as exc:
+                st.session_state.detection_log.append(f"[Cisco AI Defense Gateway] 차단: {exc}")
+                reply = "⚠️ Cisco AI Defense Gateway가 요청을 차단했습니다."
+
+        st.session_state.messages.append({"role": "assistant", "content": reply})
+        st.rerun()
 
     if defense_mode == DEFENSE_MODE_MOCK:
         matched_pattern = check_input(user_input)
