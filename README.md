@@ -2,13 +2,17 @@
 
 PeteBot is a deliberately vulnerable demo chatbot (fake corporate IT helpdesk
 assistant) used to demonstrate Cisco AI Defense against prompt injection and
-sensitive data leakage. The sidebar has three filter modes:
+sensitive data leakage. The sidebar has four filter modes:
 
 - **끄기** — no filtering, PeteBot leaks everything.
 - **Mock 필터 (데모용)** — local rule-based mock, not the real Cisco AI Defense engine.
 - **Cisco AI Defense API (실제)** — calls the real Cisco AI Defense Chat Inspection
   API (`/api/v1/inspect/chat`) before sending the user's message to the LLM, and
   again on the model's reply before it's shown.
+- **Cisco AI Defense Gateway (프록시)** — routes the LLM call itself through the
+  real Cisco AI Defense Gateway's OpenAI-compatible proxy endpoint. Inspection of
+  both the input and the output happens inline inside the Gateway, in a single
+  round trip, instead of PeteBot calling a separate inspect API before/after.
 
 ## Setup
 
@@ -17,6 +21,8 @@ pip install -r requirements.txt
 cp .env.example .env
 # edit .env and set GROQ_API_KEY
 # optionally set AI_DEFENSE_API_KEY to use the real Cisco AI Defense API mode
+# optionally set AI_DEFENSE_GATEWAY_URL to use the Cisco AI Defense Gateway mode
+# (create a Groq connection in the Cisco AI Defense console to get this URL)
 ```
 
 ## Run
@@ -39,6 +45,10 @@ streamlit run app.py
 4. Switch to **Cisco AI Defense API (실제)** (requires `AI_DEFENSE_API_KEY` in `.env`)
    and repeat the same prompts to compare the real engine's verdicts
    (classification, severity, matched rules) against the mock filter.
+5. Switch to **Cisco AI Defense Gateway (프록시)** (requires `AI_DEFENSE_GATEWAY_URL`
+   in `.env`, pointing at a Groq connection in the Cisco AI Defense console) and
+   repeat the same prompts to compare the Gateway's inline blocking behavior
+   (single round trip, no separate inspect calls) against the API mode.
 
 ## Notes
 
