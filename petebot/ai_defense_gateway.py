@@ -39,6 +39,19 @@ def _extract_block_reason(body: Optional[object]) -> str:
     return "Gateway가 요청을 차단했습니다."
 
 
+_INLINE_BLOCK_PREFIX = "This request violates rules:"
+
+
+def _is_inline_block(content: Optional[str]) -> bool:
+    """Detect Gateway's inline block form: a 200 response whose message body
+    *is* the verdict (e.g. "This request violates rules: Prompt Injection"),
+    as opposed to the non-2xx block form handled by _extract_block_reason.
+    Both forms have been observed from the same Gateway connection, so
+    callers must check for this even after a successful-looking response.
+    """
+    return bool(content) and content.strip().startswith(_INLINE_BLOCK_PREFIX)
+
+
 def chat_completion_via_gateway(
     client: Groq,
     system_prompt: str,
@@ -56,11 +69,15 @@ def chat_completion_via_gateway(
 
     try:
         response = client.post(
-            "/chat/completions",
+            "/openai/v1/chat/completions",
             body={"model": model, "messages": messages},
             cast_to=ChatCompletion,
         )
     except groq.APIStatusError as exc:
         raise AIDefenseGatewayBlocked(f"{_extract_block_reason(exc.body)} (HTTP {exc.status_code})") from exc
 
-    return response.choices[0].message.content
+    content = response.choices[0].message.content
+    if _is_inline_block(content):
+        raise AIDefenseGatewayBlocked(content)
+
+    return content

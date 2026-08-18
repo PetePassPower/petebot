@@ -3,7 +3,7 @@ from typing import Dict, List
 
 from groq import Groq
 
-DEFAULT_MODEL = "llama-3.1-8b-instant"
+DEFAULT_MODEL = "openai/gpt-oss-20b"
 
 
 def get_client(api_key: str) -> Groq:
